@@ -166,25 +166,3 @@ LISTO!, ahora puedes probar tu documentacion en
 ```localhost:[puerto]/api-docs```
 
 
-# ACTUALIZACION DE CONFIGURACIONES DE PROYECTO PARA GOOGLE/GENAI
-Se realizo una reconfiguracion del proyecto para la compatibilidad con el nuevo paquete google/genai, para el cliente de gemini.
-!!La libreria anteriormente utilizada estaba obsoleta y no era compatible con los functioncalls de gemini.
-
-Se instalo @google/genai.
-
-Se reemplazo commonjs con ES6Next en el tsconfig:
-```"module": "ESNext", /* Specify what module code is generated. */```
-    ````"moduleResolution": "bundler"```
-
-Se instalo tsx (reemplazo de tsnodedev) 
-
-Se modifico el script de dev, sistituyendo tsnodedev con tsx:
-ANTIGUO:``    "dev": "tsnd --respawn --clear src/app.ts",``
-NUEVO:     ````"dev": "tsx watch src/app.ts",````
-
-Se añadio el parametro type:module en el package.json
-````ts
- "name": "busroutes-mobile-backend",
-  "type": "module",
-  "version": "1.0.0",
-  "main": "index.js",````
