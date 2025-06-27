@@ -20,6 +20,7 @@ export class PaddleController {
     //!! This is a requirement from Paddle to avoid retries
     res.status(200).send("Webhook received");
 
+    console.log("Received Paddle webhook:", req.body);
 
 
 
@@ -28,7 +29,6 @@ export class PaddleController {
       case "customer.created":
         const customer_id = req.body.data.id;
 
-        console.log("Customer created with ID:", customer_id);
         const { name, email } = req.body.data;
         //busca el usuario por email
         let user = await prisma.users.findFirst({
@@ -70,7 +70,7 @@ export class PaddleController {
           //obtenemos los datos del metodo de pago
           const payments = req.body.data.payments || [];
           const capturedPayment = payments.find((payment: any) => payment.status === "captured");
-          console.log("Captured Payment:", capturedPayment);
+
           const payment_method = capturedPayment.method_details?.type || "unknown";
 
           const payment_method_brand = capturedPayment.method_details?.card.type || "unknown";
@@ -81,15 +81,7 @@ export class PaddleController {
               paddle_customer_id
             }
           });
-          console.log("Transaction ID:", transaction_id);
-          console.log("Paid At:", paid_at);
-          console.log("Customer ID:", paddle_customer_id);
-          console.log("Status:", status);
-          console.log("Grand Total:", grand_total);
-          console.log("Currency:", currency_code);
-          console.log("Payment Method:", payment_method);
-          console.log("Payment Method Brand:", payment_method_brand);
-          console.log("Last 4 Digits:", last4);
+
 
           //TODO: check if the customer already exists
           const transaction = await prisma.transactions.create({
@@ -105,7 +97,7 @@ export class PaddleController {
               last4,
             }
           })
-          console.log("Transaction created:", transaction);
+
 
         }
         break;
@@ -157,25 +149,59 @@ export class PaddleController {
                 subscription_id: subscription.id,
               }
             })
-            console.log("Customer ID:", customer.id);
-            console.log("Status:", status);
-            console.log("Next Billed At:", next_billed_at);
-            console.log("Paused At:", paused_at);
-            console.log("Canceled At:", canceled_at);
-            console.log("Created At:", created_at);
-            console.log("Updated At:", updated_at);
-            console.log("Starts At:", starts_at);
-            console.log("Ends At:", ends_at);
-            console.log("Paddle Subscription ID:", paddle_subscription_id);
-            console.log("Plan:", plan);
+
 
           }
           else {
             console.log("User not found for customer ID:", customer_id);
           }
 
+
         }
         break;
+      case "subscription.updated":
+        {
+          console.log("suscripcion renovada?")
+          const paddle_subscription_id = req.body.data.id;
+          const { updated_at, next_billed_at, paused_at, status } = req.body.data;
+          //in case the billing period is null (when the subscription is paused)
+          const current_billing_period = req.body.data.current_billing_period ?? { ends_at: null, starts_at: null };
+          const { ends_at, starts_at } = current_billing_period;
+          const subscription = await prisma.subscriptions.findFirst({
+            where: {
+              paddle_subscription_id
+            }
+          })
+
+          if (!subscription) {
+            console.log("Subscription not found for ID:", paddle_subscription_id);
+            return;
+          }
+          console.log("Subscription updated values:");
+          console.log("paddle_subscription_id:", paddle_subscription_id);
+          console.log("updated_at:", updated_at);
+          console.log("next_billed_at:", next_billed_at);
+          console.log("paused_at:", paused_at);
+          console.log("current_billing_period_start:", starts_at);
+          console.log("current_billing_period_end:", ends_at);
+
+          //set the subscription to pending before the transaction is paid
+          const updatedSubscription = await prisma.subscriptions.update({
+            where: {
+              id: subscription.id,
+            },
+            data: {
+              next_bill_date: next_billed_at,
+              updated_at,
+              status,
+              paused_at,
+              current_billing_period_start: starts_at,
+              current_billing_period_end: ends_at,
+            }
+          })
+        }
+        break;
+
     }
 
   }
