@@ -1,0 +1,56 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model subscriptions {
+  id                           String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id                      String?        @db.Uuid
+  paddle_subscription_id       String         @unique
+  paddle_customer_id           String
+  status                       String
+  plan                         String
+  current_billing_period_start DateTime?      @db.Timestamp(6)
+  next_bill_date               DateTime?      @db.Date
+  cancel_url                   String?
+  update_url                   String?
+  trial_end                    DateTime?      @db.Timestamp(6)
+  paused_at                    DateTime?      @db.Timestamp(6)
+  canceled_at                  DateTime?      @db.Timestamp(6)
+  created_at                   DateTime?      @default(now()) @db.Timestamp(6)
+  updated_at                   DateTime?      @default(now()) @db.Timestamp(6)
+  users                        users?         @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  transactions                 transactions[]
+}
+
+model users {
+  id                 String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email              String          @unique
+  name               String?
+  paddle_customer_id String?         @unique
+  created_at         DateTime?       @default(now()) @db.Timestamp(6)
+  subscriptions      subscriptions[]
+  transactions       transactions[]
+}
+
+model transactions {
+  id              String         @id(map: "payments_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id         String?        @db.Uuid
+  subscription_id String?        @db.Uuid
+  transaction_id  String?
+  amount          Decimal?       @db.Decimal(10, 2)
+  currency        String?
+  status          String?
+  paid_at         DateTime?      @db.Timestamp(6)
+  receipt_url     String?
+  payment_method  String?
+  brand           String?
+  last4           String?
+  created_at      DateTime?      @default(now()) @db.Timestamp(6)
+  subscriptions   subscriptions? @relation(fields: [subscription_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "payments_subscription_id_fkey")
+  users           users?         @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "payments_user_id_fkey")
+}

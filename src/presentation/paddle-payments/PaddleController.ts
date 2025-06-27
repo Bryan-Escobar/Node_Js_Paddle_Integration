@@ -1,0 +1,112 @@
+import { Request, Response } from "express";
+import MessagingResponse from "twilio/lib/twiml/MessagingResponse";
+
+import axios from "axios";
+import { envs } from "../../config/envs.js";
+import { Prisma, PrismaClient } from "@prisma/client";
+
+
+
+export class PaddleController {
+
+  constructor() {
+  }
+
+  static async PaddleWebhook(req: Request, res: Response) {
+
+
+    const prisma = new PrismaClient();
+    //!! Endpoints for paddle must return 200 bafore processing the request
+    //!! This is a requirement from Paddle to avoid retries
+    res.status(200).send("Webhook received");
+
+    console.log(req.body.data);
+
+
+
+    switch (req.body.event_type) {
+      case "customer.created":
+        const customer_id = req.body.data.id;
+
+        console.log("Customer created with ID:", customer_id);
+        const { name, email } = req.body.data;
+        let user = await prisma.users.findFirst({
+          where: {
+            paddle_customer_id: customer_id
+          }
+        })
+        if (!user) {
+          user = await prisma.users.create({
+            data: {
+              name,
+              email,
+              paddle_customer_id: customer_id
+            }
+          });
+        }
+        else {
+          await prisma.users.update({
+            where: {
+              id: user.id
+            },
+            data: {
+              paddle_customer_id: customer_id,
+            }
+          })
+        }
+        break;
+      case "transaction.paid":
+        {
+
+
+
+          const transaction_id = req.body.data.id;
+          const paid_at = req.body.data.billed_at;
+          const { customer_id, status } = req.body.data;
+          const { grand_total, currency_code } = req.body.data.details.totals;
+
+          //obtenemos los datos del metodo de pago
+          const payments = req.body.data.payments || [];
+          const capturedPayment = payments.find((payment: any) => payment.status === "captured");
+          console.log("Captured Payment:", capturedPayment);
+          const payment_method = capturedPayment.method_details?.type || "unknown";
+
+          const payment_method_brand = capturedPayment.method_details?.card.type || "unknown";
+          const last4 = capturedPayment.method_details?.card.last4 || "0000";
+
+          let user = await prisma.users.findFirst({
+            where: {
+              paddle_customer_id: customer_id
+            }
+          });
+          console.log("Transaction ID:", transaction_id);
+          console.log("Paid At:", paid_at);
+          console.log("Customer ID:", customer_id);
+          console.log("Status:", status);
+          console.log("Grand Total:", grand_total);
+          console.log("Currency:", currency_code);
+          console.log("Payment Method:", payment_method);
+          console.log("Payment Method Brand:", payment_method_brand);
+          console.log("Last 4 Digits:", last4);
+
+
+          const transaction = await prisma.transactions.create({
+            data: {
+              user_id: user ? user.id : null,
+              transaction_id,
+              amount: grand_total,
+              currency: currency_code,
+              status,
+              paid_at,
+              payment_method,
+              brand: payment_method_brand,
+              last4,
+            }
+          })
+          console.log("Transaction created:", transaction);
+
+        }
+    }
+
+  }
+}
