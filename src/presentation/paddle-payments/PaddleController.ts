@@ -37,20 +37,20 @@ export class PaddleController {
           }
         })
         if (!user) {
-          user = await prisma.users.create({
-            data: {
-              name,
-              email,
-              paddle_customer_id: customer_id
-            }
-          });
+          // user = await prisma.users.create({
+          //   data: {
+          //     name,
+          //     email,
+          //     paddle_customer_id: customer_id
+          //   }
+          // });
+          console.log("User not found while creating customer")
         }
         else {
-          await prisma.users.update({
-            where: {
-              id: user.id
-            },
+          //TODO: check if the customer already exists
+          const newCustomer = await prisma.customers.create({
             data: {
+              user_id: user.id,
               paddle_customer_id: customer_id,
             }
           })
@@ -63,7 +63,8 @@ export class PaddleController {
 
           const transaction_id = req.body.data.id;
           const paid_at = req.body.data.billed_at;
-          const { customer_id, status } = req.body.data;
+          const { status } = req.body.data;
+          const paddle_customer_id = req.body.data.customer_id;
           const { grand_total, currency_code } = req.body.data.details.totals;
 
           //obtenemos los datos del metodo de pago
@@ -75,14 +76,14 @@ export class PaddleController {
           const payment_method_brand = capturedPayment.method_details?.card.type || "unknown";
           const last4 = capturedPayment.method_details?.card.last4 || "0000";
 
-          let user = await prisma.users.findFirst({
+          let customer = await prisma.customers.findFirst({
             where: {
-              paddle_customer_id: customer_id
+              paddle_customer_id
             }
           });
           console.log("Transaction ID:", transaction_id);
           console.log("Paid At:", paid_at);
-          console.log("Customer ID:", customer_id);
+          console.log("Customer ID:", paddle_customer_id);
           console.log("Status:", status);
           console.log("Grand Total:", grand_total);
           console.log("Currency:", currency_code);
@@ -90,10 +91,10 @@ export class PaddleController {
           console.log("Payment Method Brand:", payment_method_brand);
           console.log("Last 4 Digits:", last4);
 
-
+          //TODO: check if the customer already exists
           const transaction = await prisma.transactions.create({
             data: {
-              user_id: user ? user.id : null,
+              customer_id: customer?.id,
               paddle_transaction_id: transaction_id,
               amount: grand_total,
               currency: currency_code,
@@ -111,25 +112,25 @@ export class PaddleController {
       case "subscription.activated":
         {
           console.log(req.body);
-          const { customer_id, status, next_billed_at, paused_at, canceled_at, created_at, updated_at } = req.body.data;
+          const { status, next_billed_at, paused_at, canceled_at, created_at, updated_at } = req.body.data;
+          const paddle_customer_id = req.body.data.customer_id;
           const { starts_at, ends_at } = req.body.data.current_billing_period;
           const paddle_subscription_id = req.body.data.id;
           const plan = req.body.data.items[0].price.name;
 
 
 
-          let user = await prisma.users.findFirst({
+          let customer = await prisma.customers.findFirst({
             where: {
-              paddle_customer_id: customer_id
+              paddle_customer_id
             }
           });
-          if (user) {
+          if (customer) {
 
-            console.log("User found:", user);
+            console.log("customer found:", customer);
             const subscription = await prisma.subscriptions.create({
               data: {
-                paddle_customer_id: customer_id,
-                user_id: user ? user.id : null,
+                customer_id: customer.id,
                 paddle_subscription_id,
                 status,
                 plan,
@@ -148,7 +149,7 @@ export class PaddleController {
             console.log("subscription id created:", subscription.id);
             const transaction = await prisma.transactions.updateMany({
               where: {
-                user_id: user.id,
+                customer_id: customer.id,
                 status: "paid",
                 subscription_id: null, // Ensure we only update transactions without a subscription ID
               },
@@ -156,7 +157,7 @@ export class PaddleController {
                 subscription_id: subscription.id,
               }
             })
-            console.log("Customer ID:", customer_id);
+            console.log("Customer ID:", customer.id);
             console.log("Status:", status);
             console.log("Next Billed At:", next_billed_at);
             console.log("Paused At:", paused_at);
