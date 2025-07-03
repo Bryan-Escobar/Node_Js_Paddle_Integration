@@ -61,6 +61,7 @@ Ideal para desarrolladores y empresas que buscan integrar pagos y suscripciones 
 
 ## OTROS COMANDOS UTILES PARA BASES DE DATOS:
 COMANDO PARA GENERAR EL SCHEMA/CLIENTE DE PRISMA: ````npx prisma generate````
+!! En caso de recibir un error de tipo EPERM al ejecutarlo, asegugarse que el proyecto no este corriendo
 COMANDO PARA CREAR DB EN BASE AL ORM: ````npx prisma migrate dev --name init````
 COMANDO PARA CREAR LOS MODELOS DEL ORM SI LA BASE YA EXISTE: ````npx prisma db pull````
 

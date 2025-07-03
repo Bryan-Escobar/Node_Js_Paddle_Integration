@@ -21,6 +21,8 @@ export class Server {
 
   private async configure() {
     //* Middlewares
+    this.app.use(express.json()); // Para parsear el cuerpo de las peticiones como JSON
+    this.app.use(express.urlencoded({ extended: true })); // Para parsear el cuerpo de
     // Middleware para Swagger
     this.app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
     this.app.use(express.json()); // raw

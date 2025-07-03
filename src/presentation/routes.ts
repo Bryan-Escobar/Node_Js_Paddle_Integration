@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { PaddleRoutes } from "./paddle-payments/routes";
+import { AuthRoutes } from "./Auth/routes";
 
 
 export class AppRoutes {
@@ -9,7 +10,7 @@ export class AppRoutes {
 
     router.use('/api/paddle-payments', PaddleRoutes.routes);
 
-
+    router.use('/api/auth', AuthRoutes.routes);
 
     router.get("/api/overview", (req, res) => {
       console.log("la api esta funcionando correctamente");
